@@ -200,46 +200,16 @@ pub const Game = struct {
         );
     }
 
-    fn getSurroundingTiles(self: @This(), tile: rl.Vector2) []rl.Vector2 {
-        var tiles: [4]rl.Vector2 = undefined;
-        var i: usize = 0;
-        if (tile.x != 0) {
-            tiles[i] = .{ .x = tile.x - 1, .y = tile.y };
-            i += 1;
-        }
-        if (tile.y != 0) {
-            tiles[i] = .{ .x = tile.x, .y = tile.y - 1 };
-            i += 1;
-        }
-        if (tile.y < self.current_level.size.y) {
-            tiles[i] = .{ .x = tile.x, .y = tile.y + 1 };
-            i += 1;
-        }
-        if (tile.x < self.current_level.size.x) {
-            tiles[i] = .{ .x = tile.x + 1, .y = tile.y };
-            i += 1;
-        }
-        return tiles[0..i];
-    }
-
     pub fn drawLevel(self: @This()) void {
         for (0.., self.current_level.tiles.items) |i, x| {
             for (0.., x.items) |j, y| {
-                self.discoverAroundPlayer(.{ .x = @floatFromInt(i), .y = @floatFromInt(j) });
                 const tile_color = switch (y) {
                     .stair => |tile| if (tile == true) rl.Color.light_gray else rl.Color.brown,
                     .floor => |tile| if (tile == true) rl.Color.dark_gray else rl.Color.brown,
                     .other => |tile| if (!tile.hidden) tile.color else rl.Color.brown,
                     .wall => |tile| if (tile == true) rl.Color.brown else rl.Color.brown,
                 };
-                switch (y) {
-                    .wall => {
-                        const neighbors = self.getSurroundingTiles(.{ .x = @floatFromInt(i), .y = @floatFromInt(j) });
-                        //TODO: check if neighbors are revealed floors, and then add borders to this wall as appropriate
-                    },
-                    else => {},
-                }
-                
+
                 rl.drawRectanglePro(
                     .{
                         .x = @as(f32, @floatFromInt(i)) * self.tile_scale.x,
@@ -251,6 +221,90 @@ pub const Game = struct {
                     0,
                     tile_color,
                 );
+            }
+        }
+        for (0.., self.current_level.tiles.items) |i, x| {
+            for (0.., x.items) |j, y| {
+                self.discoverAroundPlayer(.{ .x = @floatFromInt(i), .y = @floatFromInt(j) });
+                switch (y) {
+                    .wall => {
+                        for (0..3) |_| {
+                            if (@as(f32, @floatFromInt(i)) < self.current_level.size.x - 1)
+                                switch (self.current_level.tiles.items[i + 1].items[j]) {
+                                    .floor => |tile| if (tile) {
+                                        rl.drawLineEx(
+                                            .{
+                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
+                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y),
+                                            },
+                                            .{
+                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
+                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y) + self.tile_scale.y,
+                                            },
+                                            self.tile_margin,
+                                            rl.Color.blue,
+                                        );
+                                    },
+                                    else => {},
+                                };
+                            if (i > 0)
+                                switch (self.current_level.tiles.items[i - 1].items[j]) {
+                                    .floor => |tile| if (tile) {
+                                        rl.drawLineEx(
+                                            .{
+                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x),
+                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y),
+                                            },
+                                            .{
+                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x),
+                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y) + self.tile_scale.y,
+                                            },
+                                            self.tile_margin,
+                                            rl.Color.green,
+                                        );
+                                    },
+                                    else => {},
+                                };
+                            if (j > 0)
+                                switch (self.current_level.tiles.items[i].items[j - 1]) {
+                                    .floor => |tile| if (tile) {
+                                        rl.drawLineEx(
+                                            .{
+                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x),
+                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y),
+                                            },
+                                            .{
+                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
+                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y),
+                                            },
+                                            self.tile_margin,
+                                            rl.Color.pink,
+                                        );
+                                    },
+                                    else => {},
+                                };
+                            if (@as(f32, @floatFromInt(j)) < self.current_level.size.y - 1)
+                                switch (self.current_level.tiles.items[i].items[j + 1]) {
+                                    .floor => |tile| if (tile) {
+                                        rl.drawLineEx(
+                                            .{
+                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x),
+                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y) + self.tile_scale.y,
+                                            },
+                                            .{
+                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
+                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y) + self.tile_scale.y,
+                                            },
+                                            self.tile_margin,
+                                            rl.Color.red,
+                                        );
+                                    },
+                                    else => {},
+                                };
+                        }
+                    },
+                    else => {},
+                }
             }
         }
     }

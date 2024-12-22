@@ -8,10 +8,6 @@
             .url = "git+https://github.com/Not-Nik/raylib-zig#c191e12e7c50e5dc2b1addd1e5dbd16bd405d2b5",
             .hash = "12202f8c415153088be8df39a51e0a4c9d402afd403422a0dcc9afdd417e437a6fdb",
         },
-        .dvui = .{
-            .url = "git+https://github.com/david-vanderson/dvui#7cd330417f9897fc3f068d42cfa70d45e0c48759",
-            .hash = "1220926afc74b148ab46b0946a4a8d3f701dc426d302ac707e09d04fc64dde4a7748",
-        },
     },
     .paths = .{
         "build.zig",

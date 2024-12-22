@@ -44,7 +44,7 @@ pub const Level = struct {
 
         var valid_coords = std.ArrayList(rl.Vector2).init(allocator);
 
-        for (0..@intFromFloat(self.size.x - 1) ) |i| {
+        for (0..@intFromFloat(self.size.x - 1)) |i| {
             for (0..@intFromFloat(self.size.y - 1)) |j| {
                 switch (self.tiles.items[i].items[j]) {
                     .floor => try valid_coords.append(.{

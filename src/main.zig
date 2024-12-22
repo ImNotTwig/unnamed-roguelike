@@ -85,10 +85,15 @@ pub fn main() !void {
         g.checkMoveKey();
 
         g.player.lock.updateLocation();
-
         g.moveCameraToPlayer();
         g.camera.lock.updateLocation();
-
         g.drawPlayer();
+
+        const mouse_wheel = rl.getMouseWheelMove();
+        if (mouse_wheel > 0) {
+            g.camera.camera.zoom += 0.1;
+        } else if (mouse_wheel < 0) {
+            g.camera.camera.zoom -= 0.1;
+        }
     }
 }
