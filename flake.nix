@@ -1,21 +1,29 @@
 {
-  outputs = {nixpkgs, ...}: let
+  inputs = {
+    zls.url = "github:zigtools/zls";
+    zig-overlay.url = "github:mitchellh/zig-overlay";
+  };
+  outputs = {nixpkgs, zig-overlay, zls, ...}: let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
   in {
     devShells.${system}.default = pkgs.mkShell {
       packages = [
-        pkgs.zig
-        pkgs.zls
-        pkgs.xorg.libX11
-        pkgs.xorg.libXinerama
-        pkgs.xorg.libXcursor
-        pkgs.xorg.libXrandr
-        pkgs.xorg.libXi.dev
-        pkgs.xwayland
-        pkgs.glfw
+        # pkgs.xorg.libX11
+        # pkgs.xorg.libXinerama
+        # pkgs.xorg.libXcursor
+        # pkgs.xorg.libXrandr
         pkgs.glfw-wayland
         pkgs.libGL
+        # zig-overlay.packages.${system}.master
+        # zls.packages.${system}.default
+        pkgs.zig
+        pkgs.zls
+
+        pkgs.wayland
+        pkgs.wayland-protocols
+        pkgs.wayland-scanner
+        pkgs.libxkbcommon
       ];
     };
   };
