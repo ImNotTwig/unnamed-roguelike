@@ -111,26 +111,36 @@ pub const Game = struct {
 
     pub fn checkMoveKey(self: *@This()) void {
         if (!self.player.lock.transition) {
-            if (rl.isKeyDown(.key_left)) {
-                if (self.player.occupied_tile.x > 0) {
-                    self.movePlayer(.left, 1);
-                }
-            }
-            if (rl.isKeyDown(.key_up)) {
-                if (self.player.occupied_tile.y > 0) {
-                    self.movePlayer(.up, 1);
-                }
-            }
-            if (rl.isKeyDown(.key_right)) {
-                if (self.player.occupied_tile.x < self.current_level.size.x) {
-                    self.movePlayer(.right, 1);
-                }
-            }
-            if (rl.isKeyDown(.key_down)) {
-                if (self.player.occupied_tile.y < self.current_level.size.y) {
-                    self.movePlayer(.down, 1);
-                }
-            }
+            const x: usize = @intFromFloat(self.player.occupied_tile.x);
+            const y: usize = @intFromFloat(self.player.occupied_tile.y);
+
+            if (rl.isKeyDown(.key_left))
+                if (self.player.occupied_tile.x > 0)
+                    switch (self.current_level.tiles.items[x - 1].items[y]) {
+                        .wall => {},
+                        else => self.movePlayer(.left, 1),
+                    };
+
+            if (rl.isKeyDown(.key_up))
+                if (self.player.occupied_tile.y > 0)
+                    switch (self.current_level.tiles.items[x].items[y - 1]) {
+                        .wall => {},
+                        else => self.movePlayer(.up, 1),
+                    };
+
+            if (rl.isKeyDown(.key_right))
+                if (self.player.occupied_tile.x < self.current_level.size.x)
+                    switch (self.current_level.tiles.items[x + 1].items[y]) {
+                        .wall => {},
+                        else => self.movePlayer(.right, 1),
+                    };
+
+            if (rl.isKeyDown(.key_down))
+                if (self.player.occupied_tile.y < self.current_level.size.y)
+                    switch (self.current_level.tiles.items[x].items[y + 1]) {
+                        .wall => {},
+                        else => self.movePlayer(.down, 1),
+                    };
         }
     }
 
@@ -203,6 +213,7 @@ pub const Game = struct {
     pub fn drawLevel(self: @This()) void {
         for (0.., self.current_level.tiles.items) |i, x| {
             for (0.., x.items) |j, y| {
+                self.discoverAroundPlayer(.{ .x = @floatFromInt(i), .y = @floatFromInt(j) });
                 const tile_color = switch (y) {
                     .stair => |tile| if (tile == true) rl.Color.light_gray else rl.Color.brown,
                     .floor => |tile| if (tile == true) rl.Color.dark_gray else rl.Color.brown,
@@ -221,29 +232,21 @@ pub const Game = struct {
                     0,
                     tile_color,
                 );
-            }
-        }
-        for (0.., self.current_level.tiles.items) |i, x| {
-            for (0.., x.items) |j, y| {
-                self.discoverAroundPlayer(.{ .x = @floatFromInt(i), .y = @floatFromInt(j) });
+
+                // drawing the borders around exposed walls
                 switch (y) {
                     .wall => {
                         for (0..3) |_| {
                             if (@as(f32, @floatFromInt(i)) < self.current_level.size.x - 1)
                                 switch (self.current_level.tiles.items[i + 1].items[j]) {
                                     .floor => |tile| if (tile) {
-                                        rl.drawLineEx(
-                                            .{
-                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
-                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y),
-                                            },
-                                            .{
-                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
-                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y) + self.tile_scale.y,
-                                            },
-                                            self.tile_margin,
-                                            rl.Color.blue,
-                                        );
+                                        rl.drawLineEx(.{
+                                            .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
+                                            .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y),
+                                        }, .{
+                                            .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
+                                            .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y) + self.tile_scale.y,
+                                        }, self.tile_margin, rl.Color.blue);
                                     },
                                     else => {},
                                 };
