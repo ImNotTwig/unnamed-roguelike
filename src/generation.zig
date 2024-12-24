@@ -3,6 +3,7 @@ const rl = @import("raylib");
 
 const game = @import("./game/game.zig");
 const level = @import("./game/level.zig");
+const tiles = @import("./game/tiles.zig");
 
 const Bsp = struct {
     const SplitDirection = enum {
@@ -29,46 +30,45 @@ pub fn randomGrid(
     const rng = std.Random.DefaultPrng;
     var rnd = rng.init(@intCast(std.time.timestamp()));
 
-    var tiles = std.ArrayList(std.ArrayList(level.Tile)).init(allocator);
+    var tile_list = std.ArrayList(std.ArrayList(level.Tile)).init(allocator);
 
     for (0..width) |i| {
-        try tiles.append(std.ArrayList(level.Tile).init(allocator));
+        try tile_list.append(std.ArrayList(level.Tile).init(allocator));
         for (0..height) |_| {
             const res = rnd.random().float(f32);
             if (res < wall_prob) {
-                try tiles.items[i].append(.{ .wall = false });
+                try tile_list.items[i].append(tiles.wall_0);
             } else {
-                try tiles.items[i].append(.{ .floor = false });
+                try tile_list.items[i].append(tiles.floor_0);
             }
         }
     }
 
-    return tiles;
+    return tile_list;
 }
 
 pub fn fillNeighbors(
     x: usize,
     y: usize,
-    tiles: *std.ArrayList(std.ArrayList(level.Tile)),
+    tile_list: *std.ArrayList(std.ArrayList(level.Tile)),
     checked_tiles: *std.ArrayList(std.ArrayList(rl.Vector2)),
     tile_type: level.Tile,
 ) !void {
-    if (std.meta.eql(tiles.items[x].items[y], tile_type)) return;
-    if (std.meta.eql(tiles.items[x].items[y], .{ .wall = false })) return;
-    if (std.meta.eql(tiles.items[x].items[y], .{ .wall = true })) return;
+    if (std.meta.eql(tile_list.items[x].items[y], tile_type)) return;
+    if (std.meta.eql(tile_list.items[x].items[y], tiles.wall_0)) return;
 
     const i = checked_tiles.items.len - 1;
-    tiles.items[x].items[y] = tile_type;
+    tile_list.items[x].items[y] = tile_type;
     try checked_tiles.items[i].append(.{ .x = @floatFromInt(x), .y = @floatFromInt(y) });
 
-    if (x > 0) try fillNeighbors(x - 1, y, tiles, checked_tiles, tile_type);
-    if (x + 1 < tiles.items.len) try fillNeighbors(x + 1, y, tiles, checked_tiles, tile_type);
-    if (y > 0) try fillNeighbors(x, y - 1, tiles, checked_tiles, tile_type);
-    if (y + 1 < tiles.items[x].items.len) try fillNeighbors(x, y + 1, tiles, checked_tiles, tile_type);
+    if (x > 0) try fillNeighbors(x - 1, y, tile_list, checked_tiles, tile_type);
+    if (x + 1 < tile_list.items.len) try fillNeighbors(x + 1, y, tile_list, checked_tiles, tile_type);
+    if (y > 0) try fillNeighbors(x, y - 1, tile_list, checked_tiles, tile_type);
+    if (y + 1 < tile_list.items[x].items.len) try fillNeighbors(x, y + 1, tile_list, checked_tiles, tile_type);
 }
 
 pub fn floodFillFloors(
-    tiles: *std.ArrayList(std.ArrayList(level.Tile)),
+    tile_list: *std.ArrayList(std.ArrayList(level.Tile)),
     tile_type: level.Tile,
     allocator: std.mem.Allocator,
 ) !void {
@@ -79,12 +79,12 @@ pub fn floodFillFloors(
         }
         checked_tiles.deinit();
     }
-    for (0.., tiles.items) |i, x| {
+    for (0.., tile_list.items) |i, x| {
         for (0.., x.items) |j, y| {
             switch (y) {
                 .floor => {
                     try checked_tiles.append(std.ArrayList(rl.Vector2).init(allocator));
-                    try fillNeighbors(i, j, tiles, &checked_tiles, tile_type);
+                    try fillNeighbors(i, j, tile_list, &checked_tiles, tile_type);
                 },
                 else => continue,
             }
@@ -103,25 +103,25 @@ pub fn floodFillFloors(
             for (checked_tiles.items[max_index].items) |y| {
                 const ix: usize = @intFromFloat(y.x);
                 const iy: usize = @intFromFloat(y.y);
-                tiles.items[ix].items[iy] = .{ .floor = false };
+                tile_list.items[ix].items[iy] = tiles.floor_0;
             }
         } else {
             for (checked_tiles.items[i].items) |y| {
                 const ix: usize = @intFromFloat(y.x);
                 const iy: usize = @intFromFloat(y.y);
-                tiles.items[ix].items[iy] = .{ .wall = false };
+                tile_list.items[ix].items[iy] = tiles.wall_0;
             }
         }
     }
 }
 
 pub fn makeMapFromCellularAutomata(
-    tiles: *std.ArrayList(std.ArrayList(level.Tile)),
+    tile_list: *std.ArrayList(std.ArrayList(level.Tile)),
     allocator: std.mem.Allocator,
 ) !void {
     var new_tiles = std.ArrayList(std.ArrayList(level.Tile)).init(allocator);
 
-    for (0.., tiles.items) |i, x| {
+    for (0.., tile_list.items) |i, x| {
         try new_tiles.append(std.ArrayList(level.Tile).init(allocator));
 
         for (0.., x.items) |j, _| {
@@ -140,7 +140,7 @@ pub fn makeMapFromCellularAutomata(
                         alive += 1;
                         continue;
                     }
-                    if (i_int >= tiles.items.len - 1) {
+                    if (i_int >= tile_list.items.len - 1) {
                         alive += 1;
                         continue;
                     }
@@ -148,14 +148,14 @@ pub fn makeMapFromCellularAutomata(
                         alive += 1;
                         continue;
                     }
-                    if (j_int >= tiles.items[0].items.len - 1) {
+                    if (j_int >= tile_list.items[0].items.len - 1) {
                         alive += 1;
                         continue;
                     }
 
-                    if (i_int + n < tiles.items.len - 1 and i_int + n >= 0) {
-                        if (j_int + m < tiles.items[0].items.len - 1 and j_int + m >= 0) {
-                            switch (tiles.items[@intCast(n + i_int)].items[@intCast(m + j_int)]) {
+                    if (i_int + n < tile_list.items.len - 1 and i_int + n >= 0) {
+                        if (j_int + m < tile_list.items[0].items.len - 1 and j_int + m >= 0) {
+                            switch (tile_list.items[@intCast(n + i_int)].items[@intCast(m + j_int)]) {
                                 .floor => {
                                     alive += 1;
                                 },
@@ -165,29 +165,29 @@ pub fn makeMapFromCellularAutomata(
                     }
                 }
             }
-            switch (tiles.items[i].items[j]) {
+            switch (tile_list.items[i].items[j]) {
                 .wall => {
                     if (alive >= 3) {
-                        try new_tiles.items[i].append(.{ .wall = false });
+                        try new_tiles.items[i].append(tiles.wall_0);
                     } else {
-                        try new_tiles.items[i].append(.{ .floor = false });
+                        try new_tiles.items[i].append(tiles.floor_0);
                     }
                 },
                 else => {
                     if (alive <= 10) {
-                        try new_tiles.items[i].append(.{ .wall = false });
+                        try new_tiles.items[i].append(tiles.wall_0);
                     } else {
-                        try new_tiles.items[i].append(.{ .floor = false });
+                        try new_tiles.items[i].append(tiles.floor_0);
                     }
                 },
             }
         }
     }
 
-    for (tiles.items) |*x| {
+    for (tile_list.items) |*x| {
         x.deinit();
     }
-    tiles.deinit();
+    tile_list.deinit();
 
-    tiles.* = new_tiles;
+    tile_list.* = new_tiles;
 }

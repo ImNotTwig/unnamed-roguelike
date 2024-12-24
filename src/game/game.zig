@@ -3,6 +3,8 @@ const rl = @import("raylib");
 
 const Player = @import("./player.zig");
 const level = @import("./level.zig");
+const colors = @import("../colors.zig");
+const tiles = @import("./tiles.zig");
 
 // TransitionLock is a struct used by visual elements that transition from
 // one place to another within a target amount of time
@@ -88,8 +90,15 @@ pub const Game = struct {
         const screen_width = rl.getScreenWidth();
         const screen_height = rl.getScreenHeight();
 
-        self.camera.target_location.x = self.player.visual_location.x;
-        self.camera.target_location.y = self.player.visual_location.y;
+        const player_text_size = rl.measureTextEx(
+            rl.getFontDefault(),
+            "@",
+            self.tile_scale.x - self.tile_margin,
+            0,
+        );
+
+        self.camera.target_location.x = (self.player.visual_location.x + self.tile_margin + player_text_size.x / 2) + 3;
+        self.camera.target_location.y = (self.player.visual_location.y + player_text_size.y / 2);
 
         self.camera.camera.offset.x = @as(f32, @floatFromInt(@divTrunc(screen_width, 2)));
         self.camera.camera.offset.y = @as(f32, @floatFromInt(@divTrunc(screen_height, 2)));
@@ -109,51 +118,43 @@ pub const Game = struct {
         };
     }
 
+    //TODO: fix diagonal movement/ support it
     pub fn checkMoveKey(self: *@This()) void {
         if (!self.player.lock.transition) {
             const x: usize = @intFromFloat(self.player.occupied_tile.x);
             const y: usize = @intFromFloat(self.player.occupied_tile.y);
 
-            if (rl.isKeyDown(.key_left))
+            if (rl.isKeyDown(.key_a)) {
                 if (self.player.occupied_tile.x > 0)
                     switch (self.current_level.tiles.items[x - 1].items[y]) {
                         .wall => {},
                         else => self.movePlayer(.left, 1),
                     };
-
-            if (rl.isKeyDown(.key_up))
+            } else if (rl.isKeyDown(.key_w)) {
                 if (self.player.occupied_tile.y > 0)
                     switch (self.current_level.tiles.items[x].items[y - 1]) {
                         .wall => {},
                         else => self.movePlayer(.up, 1),
                     };
-
-            if (rl.isKeyDown(.key_right))
+            } else if (rl.isKeyDown(.key_d)) {
                 if (self.player.occupied_tile.x < self.current_level.size.x)
                     switch (self.current_level.tiles.items[x + 1].items[y]) {
                         .wall => {},
                         else => self.movePlayer(.right, 1),
                     };
-
-            if (rl.isKeyDown(.key_down))
+            } else if (rl.isKeyDown(.key_s)) {
                 if (self.player.occupied_tile.y < self.current_level.size.y)
                     switch (self.current_level.tiles.items[x].items[y + 1]) {
                         .wall => {},
                         else => self.movePlayer(.down, 1),
                     };
+            }
         }
     }
 
     pub fn discoverAroundPlayer(self: @This(), tile_pos: rl.Vector2) void {
         const i: usize = @intFromFloat(tile_pos.x);
         const j: usize = @intFromFloat(tile_pos.y);
-
-        if (tile_pos.x == self.player.occupied_tile.x and tile_pos.y == self.player.occupied_tile.y) {
-            switch (self.current_level.tiles.items[i].items[j]) {
-                .floor => |*tile| tile.* = true,
-                else => {},
-            }
-        }
 
         if (rl.Vector2.distance(.{
             .x = self.player.occupied_tile.x,
@@ -181,9 +182,9 @@ pub const Game = struct {
             }
 
             switch (self.current_level.tiles.items[i].items[j]) {
-                .floor => |*tile| tile.* = true,
-                .stair => |*tile| tile.* = true,
-                .wall => |*tile| tile.* = true,
+                .floor => |*tile| tile.hidden = false,
+                .stair => |*tile| tile.hidden = false,
+                .wall => |*tile| tile.hidden = false,
                 .other => |*tile| tile.hidden = false,
             }
         }
@@ -215,100 +216,133 @@ pub const Game = struct {
             for (0.., x.items) |j, y| {
                 self.discoverAroundPlayer(.{ .x = @floatFromInt(i), .y = @floatFromInt(j) });
                 const tile_color = switch (y) {
-                    .stair => |tile| if (tile == true) rl.Color.light_gray else rl.Color.brown,
-                    .floor => |tile| if (tile == true) rl.Color.dark_gray else rl.Color.brown,
-                    .other => |tile| if (!tile.hidden) tile.color else rl.Color.brown,
-                    .wall => |tile| if (tile == true) rl.Color.brown else rl.Color.brown,
+                    .stair => |tile| if (!tile.hidden) tile.color else colors.FF_BG,
+                    .floor => |tile| if (!tile.hidden) tile.color else colors.FF_BG,
+                    .other => |tile| if (!tile.hidden) tile.color else colors.FF_BG,
+                    .wall => |tile| if (!tile.hidden) tile.color else colors.FF_BG,
                 };
 
-                rl.drawRectanglePro(
-                    .{
-                        .x = @as(f32, @floatFromInt(i)) * self.tile_scale.x,
-                        .y = @as(f32, @floatFromInt(j)) * self.tile_scale.y,
-                        .width = self.tile_scale.x - self.tile_margin,
-                        .height = self.tile_scale.y - self.tile_margin,
-                    },
-                    .{ .x = 0, .y = 0 },
-                    0,
-                    tile_color,
-                );
+                rl.drawRectanglePro(.{
+                    .x = @as(f32, @floatFromInt(i)) * self.tile_scale.x,
+                    .y = @as(f32, @floatFromInt(j)) * self.tile_scale.y,
+                    .width = self.tile_scale.x - self.tile_margin,
+                    .height = self.tile_scale.y - self.tile_margin,
+                }, .{ .x = 0, .y = 0 }, 0, tile_color);
+            }
+        }
 
-                // drawing the borders around exposed walls
+        // drawing the borders around exposed walls
+        for (0.., self.current_level.tiles.items) |i, x| {
+            for (0.., x.items) |j, y| {
                 switch (y) {
-                    .wall => {
-                        for (0..3) |_| {
-                            if (@as(f32, @floatFromInt(i)) < self.current_level.size.x - 1)
-                                switch (self.current_level.tiles.items[i + 1].items[j]) {
-                                    .floor => |tile| if (tile) {
-                                        rl.drawLineEx(.{
-                                            .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
-                                            .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y),
-                                        }, .{
-                                            .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
-                                            .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y) + self.tile_scale.y,
-                                        }, self.tile_margin, rl.Color.blue);
-                                    },
-                                    else => {},
-                                };
-                            if (i > 0)
-                                switch (self.current_level.tiles.items[i - 1].items[j]) {
-                                    .floor => |tile| if (tile) {
-                                        rl.drawLineEx(
-                                            .{
-                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x),
-                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y),
-                                            },
-                                            .{
-                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x),
-                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y) + self.tile_scale.y,
-                                            },
-                                            self.tile_margin,
-                                            rl.Color.green,
-                                        );
-                                    },
-                                    else => {},
-                                };
-                            if (j > 0)
-                                switch (self.current_level.tiles.items[i].items[j - 1]) {
-                                    .floor => |tile| if (tile) {
-                                        rl.drawLineEx(
-                                            .{
-                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x),
-                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y),
-                                            },
-                                            .{
-                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
-                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y),
-                                            },
-                                            self.tile_margin,
-                                            rl.Color.pink,
-                                        );
-                                    },
-                                    else => {},
-                                };
-                            if (@as(f32, @floatFromInt(j)) < self.current_level.size.y - 1)
-                                switch (self.current_level.tiles.items[i].items[j + 1]) {
-                                    .floor => |tile| if (tile) {
-                                        rl.drawLineEx(
-                                            .{
-                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x),
-                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y) + self.tile_scale.y,
-                                            },
-                                            .{
-                                                .x = (@as(f32, @floatFromInt(i)) * self.tile_scale.x) + self.tile_scale.x,
-                                                .y = (@as(f32, @floatFromInt(j)) * self.tile_scale.y) + self.tile_scale.y,
-                                            },
-                                            self.tile_margin,
-                                            rl.Color.red,
-                                        );
-                                    },
-                                    else => {},
-                                };
-                        }
-                    },
-                    else => {},
+                    .wall => {},
+                    else => continue,
+                }
+                const fi: f32 = @floatFromInt(i);
+                const fj: f32 = @floatFromInt(j);
+
+                const dirs = self.getEmptyDirections(.{ .x = fi, .y = fj });
+                var lines: [4]struct { rl.Vector2, rl.Vector2 } = undefined;
+                var idx: usize = 0;
+
+                for (dirs) |dir| {
+                    switch (dir) {
+                        .right => {
+                            lines[idx] = .{ .{
+                                .x = ((fi + 1) * self.tile_scale.x) - self.tile_margin,
+                                .y = (fj * self.tile_scale.y),
+                            }, .{
+                                .x = ((fi + 1) * self.tile_scale.x) - self.tile_margin,
+                                .y = ((fj + 1) * self.tile_scale.y) - self.tile_margin,
+                            } };
+                            idx += 1;
+                        },
+                        .left => {
+                            lines[idx] = .{ .{
+                                .x = (fi * self.tile_scale.x) - self.tile_margin,
+                                .y = (fj * self.tile_scale.y),
+                            }, .{
+                                .x = (fi * self.tile_scale.x) - self.tile_margin,
+                                .y = ((fj + 1) * self.tile_scale.y) - self.tile_margin,
+                            } };
+                            idx += 1;
+                        },
+                        .up => {
+                            lines[idx] = .{ .{
+                                .x = (fi * self.tile_scale.x),
+                                .y = (fj * self.tile_scale.y) - self.tile_margin,
+                            }, .{
+                                .x = ((fi + 1) * self.tile_scale.x) - self.tile_margin,
+                                .y = (fj * self.tile_scale.y) - self.tile_margin,
+                            } };
+                            idx += 1;
+                        },
+                        .down => {
+                            lines[idx] = .{ .{
+                                .x = (fi * self.tile_scale.x),
+                                .y = ((fj + 1) * self.tile_scale.y) - self.tile_margin,
+                            }, .{
+                                .x = ((fi + 1) * self.tile_scale.x) - self.tile_margin,
+                                .y = ((fj + 1) * self.tile_scale.y) - self.tile_margin,
+                            } };
+                            idx += 1;
+                        },
+                    }
+                }
+
+                //TODO: draw corners when needed
+                for (lines[0..idx]) |line| {
+                    rl.drawRectanglePro(.{
+                        .x = line[0].x,
+                        .y = line[0].y,
+                        .width = @abs(line[1].x - line[0].x) + if (@abs(line[1].x - line[0].x) == 0) self.tile_margin else 0,
+                        .height = @abs(line[1].y - line[0].y) + if (@abs(line[1].y - line[0].y) == 0) self.tile_margin else 0,
+                    }, .{ .x = 0, .y = 0 }, 0, tiles.wall_0_border);
                 }
             }
         }
+    }
+
+    fn getEmptyDirections(self: @This(), tile: rl.Vector2) []MoveDirection {
+        var dirs: [4]MoveDirection = undefined;
+        var idx: usize = 0;
+
+        if (tile.x < self.current_level.size.x - 1) {
+            switch (self.current_level.tiles.items[@intFromFloat(tile.x + 1)].items[@intFromFloat(tile.y)]) {
+                .floor => |neighbor| if (!neighbor.hidden) {
+                    dirs[idx] = .right;
+                    idx += 1;
+                },
+                else => {},
+            }
+        }
+        if (tile.x > 0) {
+            switch (self.current_level.tiles.items[@intFromFloat(tile.x - 1)].items[@intFromFloat(tile.y)]) {
+                .floor => |neighbor| if (!neighbor.hidden) {
+                    dirs[idx] = .left;
+                    idx += 1;
+                },
+                else => {},
+            }
+        }
+        if (tile.y > 0) {
+            switch (self.current_level.tiles.items[@intFromFloat(tile.x)].items[@intFromFloat(tile.y - 1)]) {
+                .floor => |neighbor| if (!neighbor.hidden) {
+                    dirs[idx] = .up;
+                    idx += 1;
+                },
+                else => {},
+            }
+        }
+        if (tile.y < self.current_level.size.y - 1) {
+            switch (self.current_level.tiles.items[@intFromFloat(tile.x)].items[@intFromFloat(tile.y + 1)]) {
+                .floor => |neighbor| if (!neighbor.hidden) {
+                    dirs[idx] = .down;
+                    idx += 1;
+                },
+                else => {},
+            }
+        }
+        return dirs[0..idx];
     }
 };

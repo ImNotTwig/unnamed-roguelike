@@ -1,13 +1,18 @@
 const std = @import("std");
 const rl = @import("raylib");
+const tiles = @import("./tiles.zig");
 
 // a Tile which is false should be obscured from the player
+pub const TileData = struct {
+    hidden: bool,
+    color: rl.Color,
+};
 pub const Tile = union(enum) {
-    stair: bool,
-    floor: bool,
-    wall: bool,
+    stair: TileData,
+    floor: TileData,
+    wall: TileData,
 
-    other: struct { hidden: bool, color: rl.Color },
+    other: TileData,
 };
 
 pub const Level = struct {
@@ -19,16 +24,16 @@ pub const Level = struct {
         const uy: usize = @intFromFloat(size.y);
 
         if (allocator) |a| {
-            var tiles = std.ArrayList(std.ArrayList(Tile)).init(a);
+            var tile_list = std.ArrayList(std.ArrayList(Tile)).init(a);
             for (0..ux) |i| {
-                try tiles.append(std.ArrayList(Tile).init(a));
+                try tile_list.append(std.ArrayList(Tile).init(a));
                 for (0..uy) |_| {
-                    try tiles.items[i].append(.{ .wall = false });
+                    try tile_list.items[i].append(tiles.wall_0);
                 }
             }
             return .{
                 .size = size,
-                .tiles = tiles,
+                .tiles = tile_list,
             };
         } else {
             return .{
@@ -57,7 +62,7 @@ pub const Level = struct {
         }
         const entrance_location_index = rnd.random().intRangeAtMost(usize, 0, valid_coords.items.len);
         const entrance_location = valid_coords.items[entrance_location_index];
-        self.tiles.items[@intFromFloat(entrance_location.x)].items[@intFromFloat(entrance_location.y)] = .{ .stair = true };
+        self.tiles.items[@intFromFloat(entrance_location.x)].items[@intFromFloat(entrance_location.y)] = tiles.stair_0;
 
         return entrance_location;
     }

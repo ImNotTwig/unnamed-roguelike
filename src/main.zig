@@ -4,6 +4,8 @@ const rl = @import("raylib");
 const game = @import("./game/game.zig");
 const level = @import("./game/level.zig");
 const gen = @import("./generation.zig");
+const tiles = @import("./game/tiles.zig");
+const colors = @import("./colors.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -34,7 +36,7 @@ pub fn main() !void {
             .occupied_tile = .{ .x = 0, .y = 0 },
             .lock = .{
                 .transition = false,
-                .animation_time = 0.200,
+                .animation_time = 0.150,
                 .delta = 0,
                 .visual_location = undefined,
                 .target_location = undefined,
@@ -50,12 +52,12 @@ pub fn main() !void {
     g.current_level = try level.Level.new(.{ .x = 150, .y = 75 }, null);
     g.current_level.tiles = try gen.randomGrid(150, 75, 0.675, allocator);
 
-    for (0..22) |_| {
+    for (0..24) |_| {
         try gen.makeMapFromCellularAutomata(&g.current_level.tiles, allocator);
     }
     try gen.floodFillFloors(
         &g.current_level.tiles,
-        .{ .other = .{ .color = rl.Color.purple, .hidden = true } },
+        tiles.checking_tile,
         allocator,
     );
 
@@ -78,7 +80,7 @@ pub fn main() !void {
         rl.beginMode2D(g.camera.camera);
         defer rl.endMode2D();
 
-        rl.clearBackground(rl.Color.black);
+        rl.clearBackground(colors.FF_BG);
 
         g.drawLevel();
 
@@ -91,9 +93,22 @@ pub fn main() !void {
 
         const mouse_wheel = rl.getMouseWheelMove();
         if (mouse_wheel > 0) {
-            g.camera.camera.zoom += 0.1;
+            g.camera.camera.zoom *= 2;
         } else if (mouse_wheel < 0) {
-            g.camera.camera.zoom -= 0.1;
+            g.camera.camera.zoom /= 2;
+        }
+
+        if (rl.isKeyPressed(.key_p)) {
+            for (0.., g.current_level.tiles.items) |i, x| {
+                for (0.., x.items) |j, _| {
+                    switch (g.current_level.tiles.items[i].items[j]) {
+                        .floor => |*tile| tile.hidden = false,
+                        .wall => |*tile| tile.hidden = false,
+                        .stair => |*tile| tile.hidden = false,
+                        .other => |*tile| tile.hidden = false,
+                    }
+                }
+            }
         }
     }
 }
