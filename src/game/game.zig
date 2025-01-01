@@ -97,13 +97,13 @@ pub const Game = struct {
             0,
         );
 
-        self.camera.target_location.x = (self.player.visual_location.x + self.tile_margin + player_text_size.x / 2) + 3;
-        self.camera.target_location.y = (self.player.visual_location.y + player_text_size.y / 2);
+        self.camera.camera.target.x = (self.player.visual_location.x + self.tile_margin + player_text_size.x / 2) + 3;
+        self.camera.camera.target.y = (self.player.visual_location.y + player_text_size.y / 2);
 
         self.camera.camera.offset.x = @as(f32, @floatFromInt(@divTrunc(screen_width, 2)));
         self.camera.camera.offset.y = @as(f32, @floatFromInt(@divTrunc(screen_height, 2)));
 
-        self.camera.lock.transition = true;
+        // self.camera.lock.transition = true;
     }
 
     pub fn setPlayerLocation(self: *@This(), tile: rl.Vector2) void {
@@ -124,25 +124,25 @@ pub const Game = struct {
             const x: usize = @intFromFloat(self.player.occupied_tile.x);
             const y: usize = @intFromFloat(self.player.occupied_tile.y);
 
-            if (rl.isKeyDown(.key_a)) {
+            if (rl.isKeyDown(.a)) {
                 if (self.player.occupied_tile.x > 0)
                     switch (self.current_level.tiles.items[x - 1].items[y]) {
                         .wall => {},
                         else => self.movePlayer(.left, 1),
                     };
-            } else if (rl.isKeyDown(.key_w)) {
+            } else if (rl.isKeyDown(.w)) {
                 if (self.player.occupied_tile.y > 0)
                     switch (self.current_level.tiles.items[x].items[y - 1]) {
                         .wall => {},
                         else => self.movePlayer(.up, 1),
                     };
-            } else if (rl.isKeyDown(.key_d)) {
+            } else if (rl.isKeyDown(.d)) {
                 if (self.player.occupied_tile.x < self.current_level.size.x)
                     switch (self.current_level.tiles.items[x + 1].items[y]) {
                         .wall => {},
                         else => self.movePlayer(.right, 1),
                     };
-            } else if (rl.isKeyDown(.key_s)) {
+            } else if (rl.isKeyDown(.s)) {
                 if (self.player.occupied_tile.y < self.current_level.size.y)
                     switch (self.current_level.tiles.items[x].items[y + 1]) {
                         .wall => {},

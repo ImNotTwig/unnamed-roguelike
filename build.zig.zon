@@ -5,8 +5,8 @@
 
     .dependencies = .{
         .@"raylib-zig" = .{
-            .url = "git+https://github.com/Not-Nik/raylib-zig#c191e12e7c50e5dc2b1addd1e5dbd16bd405d2b5",
-            .hash = "12202f8c415153088be8df39a51e0a4c9d402afd403422a0dcc9afdd417e437a6fdb",
+            .url = "git+https://github.com/Not-Nik/raylib-zig#845af357e4bc5ed8d008a8bb64bd7c4b4906851d",
+            .hash = "122081321a9b6653f90fee325553c9f64934f94b789e7ddbadf27f754a5e42537c4d",
         },
     },
     .paths = .{

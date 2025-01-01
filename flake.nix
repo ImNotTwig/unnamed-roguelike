@@ -1,9 +1,5 @@
 {
-  inputs = {
-    zls.url = "github:zigtools/zls";
-    zig-overlay.url = "github:mitchellh/zig-overlay";
-  };
-  outputs = {nixpkgs, zig-overlay, zls, ...}: let
+  outputs = {nixpkgs, ...}: let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
   in {

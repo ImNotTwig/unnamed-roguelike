@@ -9,3 +9,6 @@ actual_location: rl.Vector2,
 
 // occupied_tile is the tile in which the player resides on the level grid
 occupied_tile: rl.Vector2,
+
+max_health: f32 = 100,
+current_health: f32 = 100,

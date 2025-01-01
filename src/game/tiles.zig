@@ -14,7 +14,7 @@ pub const wall_0: level.Tile = .{ .wall = .{
 
 pub const stair_0: level.Tile = .{ .stair = .{
     .hidden = true,
-    .color = colors.FF_WHITE,
+    .color = colors.FF_GRAY04,
 } };
 
 pub const checking_tile: level.Tile = .{ .other = .{
