@@ -1,18 +1,18 @@
 const std = @import("std");
 const rl = @import("raylib");
 
-const Player = @import("./player.zig");
 const level = @import("./level.zig");
 const colors = @import("../colors.zig");
 const tiles = @import("./tiles.zig");
+const Entity = @import("./entities/entity.zig");
 
 // TransitionLock is a struct used by visual elements that transition from
 // one place to another within a target amount of time
 pub const TransitionLock = struct {
     //visual_location is the location that is perceived in the game
-    visual_location: *rl.Vector2,
+    visual_location: rl.Vector2,
     //target_location is where the thing being animated is actually located
-    target_location: *rl.Vector2,
+    target_location: rl.Vector2,
     //transition is whether or not the thing is being animated currently
     transition: bool,
     //animation_time is how long the animation should take
@@ -26,7 +26,7 @@ pub const TransitionLock = struct {
             var t = self.delta / self.animation_time;
 
             if (t >= 1) t = 1;
-            self.visual_location.* = self.visual_location.lerp(self.target_location.*, t);
+            self.visual_location = self.visual_location.lerp(self.target_location, t);
             if (t == 1) {
                 self.transition = false;
                 self.delta = 0;
@@ -35,18 +35,13 @@ pub const TransitionLock = struct {
     }
 };
 
-const AnimatedCamera = struct {
-    target_location: rl.Vector2,
-    camera: rl.Camera2D,
-    lock: TransitionLock,
-};
-
 pub const Game = struct {
-    const MoveDirection = enum {
-        right,
-        left,
-        up,
-        down,
+    const Direction = enum { right, left, up, down };
+    const MoveDirection = union(Direction) {
+        right: f32,
+        left: f32,
+        up: f32,
+        down: f32,
     };
 
     // tile_scale is how much the tiles should be scaled,
@@ -55,34 +50,88 @@ pub const Game = struct {
     // tile_margin is how much space should be between each tile
     tile_margin: f32,
 
-    player: Player,
-    camera: AnimatedCamera,
+    player: Entity,
+    player_movement_queue: std.ArrayList(MoveDirection),
+    camera: rl.Camera2D,
     current_level: level.Level,
+
+    pub fn init(allocator: std.mem.Allocator) @This() {
+        return .{
+            .tile_scale = .{ .x = 30, .y = 30 },
+            .tile_margin = 10 * 0.1,
+            .camera = .{
+                .target = .{ .x = 0, .y = 0 },
+                .offset = .{ .x = 0, .y = 0 },
+                .rotation = 0,
+                .zoom = 2.0,
+            },
+            .player = .{
+                .body_parts = undefined,
+                .occupied_tile = .{ .x = 0, .y = 0 },
+                .lock = .{
+                    .transition = false,
+                    .animation_time = 0.150,
+                    .delta = 0,
+                    .visual_location = .{ .x = 0, .y = 0 },
+                    .target_location = .{ .x = 0, .y = 0 },
+                },
+            },
+            .player_movement_queue = std.ArrayList(MoveDirection).init(allocator),
+            .current_level = undefined,
+        };
+    }
 
     // direction is in terms of a traditional screen grid where
     // adding to the y coordinate moves down visually and subtracting moves up
-    pub fn movePlayer(self: *@This(), direction: MoveDirection, distance: f32) void {
-        switch (direction) {
-            .right => {
-                self.player.occupied_tile.x += distance;
-                self.player.actual_location.x += distance * self.tile_scale.x;
-                self.player.lock.transition = true;
-            },
-            .left => {
-                self.player.occupied_tile.x -= distance;
-                self.player.actual_location.x -= distance * self.tile_scale.x;
-                self.player.lock.transition = true;
-            },
-            .up => {
-                self.player.occupied_tile.y -= distance;
-                self.player.actual_location.y -= distance * self.tile_scale.y;
-                self.player.lock.transition = true;
-            },
-            .down => {
-                self.player.occupied_tile.y += distance;
-                self.player.actual_location.y += distance * self.tile_scale.y;
-                self.player.lock.transition = true;
-            },
+    pub fn movePlayer(self: *@This()) void {
+        while (self.player_movement_queue.popOrNull()) |direction| {
+            const x: usize = @intFromFloat(self.player.occupied_tile.x);
+            const y: usize = @intFromFloat(self.player.occupied_tile.y);
+
+            switch (direction) {
+                .right => |distance| {
+                    if (self.player.occupied_tile.x < self.current_level.size.x)
+                        switch (self.current_level.tiles.items[x + 1].items[y]) {
+                            .wall => {},
+                            else => {
+                                self.player.occupied_tile.x += distance;
+                                self.player.lock.target_location.x += distance * self.tile_scale.x;
+                                self.player.lock.transition = true;
+                            },
+                        };
+                },
+                .left => |distance| {
+                    if (self.player.occupied_tile.x > 0) switch (self.current_level.tiles.items[x - 1].items[y]) {
+                        .wall => {},
+                        else => {
+                            self.player.occupied_tile.x -= distance;
+                            self.player.lock.target_location.x -= distance * self.tile_scale.x;
+                            self.player.lock.transition = true;
+                        },
+                    };
+                },
+                .up => |distance| {
+                    if (self.player.occupied_tile.y > 0) switch (self.current_level.tiles.items[x].items[y - 1]) {
+                        .wall => {},
+                        else => {
+                            self.player.occupied_tile.y -= distance;
+                            self.player.lock.target_location.y -= distance * self.tile_scale.y;
+                            self.player.lock.transition = true;
+                        },
+                    };
+                },
+                .down => |distance| {
+                    if (self.player.occupied_tile.y < self.current_level.size.y)
+                        switch (self.current_level.tiles.items[x].items[y + 1]) {
+                            .wall => {},
+                            else => {
+                                self.player.occupied_tile.y += distance;
+                                self.player.lock.target_location.y += distance * self.tile_scale.y;
+                                self.player.lock.transition = true;
+                            },
+                        };
+                },
+            }
         }
     }
 
@@ -97,58 +146,45 @@ pub const Game = struct {
             0,
         );
 
-        self.camera.camera.target.x = (self.player.visual_location.x + self.tile_margin + player_text_size.x / 2) + 3;
-        self.camera.camera.target.y = (self.player.visual_location.y + player_text_size.y / 2);
+        self.camera.target.x = (self.player.lock.visual_location.x + self.tile_margin + player_text_size.x / 2) + 3;
+        self.camera.target.y = (self.player.lock.visual_location.y + player_text_size.y / 2);
 
-        self.camera.camera.offset.x = @as(f32, @floatFromInt(@divTrunc(screen_width, 2)));
-        self.camera.camera.offset.y = @as(f32, @floatFromInt(@divTrunc(screen_height, 2)));
-
-        // self.camera.lock.transition = true;
+        self.camera.offset.x = @as(f32, @floatFromInt(@divTrunc(screen_width, 2)));
+        self.camera.offset.y = @as(f32, @floatFromInt(@divTrunc(screen_height, 2)));
     }
 
     pub fn setPlayerLocation(self: *@This(), tile: rl.Vector2) void {
         self.player.occupied_tile = tile;
-        self.player.actual_location = .{
+        self.player.lock.target_location = .{
             .x = (tile.x * self.tile_scale.x),
             .y = (tile.y * self.tile_scale.y),
         };
-        self.player.visual_location = .{
+        self.player.lock.visual_location = .{
             .x = (tile.x * self.tile_scale.x),
             .y = (tile.y * self.tile_scale.y),
         };
     }
 
-    //TODO: fix diagonal movement/ support it
-    pub fn checkMoveKey(self: *@This()) void {
+    pub fn checkMoveKey(self: *@This()) !void {
         if (!self.player.lock.transition) {
-            const x: usize = @intFromFloat(self.player.occupied_tile.x);
-            const y: usize = @intFromFloat(self.player.occupied_tile.y);
-
+            var move = false;
             if (rl.isKeyDown(.a)) {
-                if (self.player.occupied_tile.x > 0)
-                    switch (self.current_level.tiles.items[x - 1].items[y]) {
-                        .wall => {},
-                        else => self.movePlayer(.left, 1),
-                    };
-            } else if (rl.isKeyDown(.w)) {
-                if (self.player.occupied_tile.y > 0)
-                    switch (self.current_level.tiles.items[x].items[y - 1]) {
-                        .wall => {},
-                        else => self.movePlayer(.up, 1),
-                    };
-            } else if (rl.isKeyDown(.d)) {
-                if (self.player.occupied_tile.x < self.current_level.size.x)
-                    switch (self.current_level.tiles.items[x + 1].items[y]) {
-                        .wall => {},
-                        else => self.movePlayer(.right, 1),
-                    };
-            } else if (rl.isKeyDown(.s)) {
-                if (self.player.occupied_tile.y < self.current_level.size.y)
-                    switch (self.current_level.tiles.items[x].items[y + 1]) {
-                        .wall => {},
-                        else => self.movePlayer(.down, 1),
-                    };
+                try self.player_movement_queue.append(.{ .left = 1 });
+                move = true;
             }
+            if (rl.isKeyDown(.w)) {
+                try self.player_movement_queue.append(.{ .up = 1 });
+                move = true;
+            }
+            if (rl.isKeyDown(.d)) {
+                try self.player_movement_queue.append(.{ .right = 1 });
+                move = true;
+            }
+            if (rl.isKeyDown(.s)) {
+                try self.player_movement_queue.append(.{ .down = 1 });
+                move = true;
+            }
+            if (move) self.movePlayer();
         }
     }
 
@@ -202,8 +238,8 @@ pub const Game = struct {
             rl.getFontDefault(),
             "@",
             .{
-                .x = self.player.visual_location.x + (self.tile_scale.x + self.tile_margin - player_text_size.x) / 4 + 1,
-                .y = self.player.visual_location.y - 1,
+                .x = self.player.lock.visual_location.x + (self.tile_scale.x + self.tile_margin - player_text_size.x) / 4 + 1,
+                .y = self.player.lock.visual_location.y - 1,
             },
             self.tile_scale.x - self.tile_margin,
             0,
@@ -303,8 +339,8 @@ pub const Game = struct {
         }
     }
 
-    fn getEmptyDirections(self: @This(), tile: rl.Vector2) []MoveDirection {
-        var dirs: [4]MoveDirection = undefined;
+    fn getEmptyDirections(self: @This(), tile: rl.Vector2) []Direction {
+        var dirs: [4]Direction = undefined;
         var idx: usize = 0;
 
         if (tile.x < self.current_level.size.x - 1) {

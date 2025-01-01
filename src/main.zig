@@ -12,43 +12,7 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    var g: game.Game = .{
-        .tile_scale = .{ .x = 30, .y = 30 },
-        .tile_margin = 10 * 0.1,
-        .camera = .{
-            .camera = rl.Camera2D{
-                .target = .{ .x = 0, .y = 0 },
-                .offset = .{ .x = 0, .y = 0 },
-                .rotation = 0,
-                .zoom = 2.0,
-            },
-            .lock = .{
-                .transition = false,
-                .animation_time = 0.001,
-                .delta = 0,
-                .visual_location = undefined,
-                .target_location = undefined,
-            },
-            .target_location = .{ .x = 0, .y = 0 },
-        },
-        .player = .{
-            .actual_location = .{ .x = 0, .y = 0 },
-            .visual_location = .{ .x = 0, .y = 0 },
-            .occupied_tile = .{ .x = 0, .y = 0 },
-            .lock = .{
-                .transition = false,
-                .animation_time = 0.150,
-                .delta = 0,
-                .visual_location = undefined,
-                .target_location = undefined,
-            },
-        },
-        .current_level = undefined,
-    };
-    g.player.lock.target_location = &g.player.actual_location;
-    g.player.lock.visual_location = &g.player.visual_location;
-    g.camera.lock.visual_location = &g.camera.camera.target;
-    g.camera.lock.target_location = &g.camera.target_location;
+    var g = game.Game.init(allocator);
 
     g.current_level = try level.Level.new(.{ .x = 150, .y = 75 }, null);
     g.current_level.tiles = try gen.randomGrid(150, 75, 0.675, allocator);
@@ -98,24 +62,24 @@ pub fn main() !void {
         rl.beginDrawing();
         defer rl.endDrawing();
 
-        rl.beginMode2D(g.camera.camera);
+        rl.beginMode2D(g.camera);
 
         rl.clearBackground(colors.FF_BG);
 
         g.drawLevel();
 
-        g.checkMoveKey();
+        try g.checkMoveKey();
+        g.movePlayer();
 
         g.player.lock.updateLocation();
         g.moveCameraToPlayer();
-        if (!g.player.lock.transition) g.camera.lock.updateLocation();
         g.drawPlayer();
 
         const mouse_wheel = rl.getMouseWheelMove();
         if (mouse_wheel > 0) {
-            g.camera.camera.zoom *= 2;
+            g.camera.zoom *= 2;
         } else if (mouse_wheel < 0) {
-            g.camera.camera.zoom /= 2;
+            g.camera.zoom /= 2;
         }
 
         if (rl.isKeyPressed(.p)) {
@@ -132,15 +96,14 @@ pub fn main() !void {
         }
 
         rl.endMode2D();
-        g.player.current_health = 50;
 
         const screen_width: f32 = @floatFromInt(rl.getScreenWidth());
         // const screen_height: f32 = @floatFromInt(rl.getScreenHeight());
 
-        var current_health_buf: [5]u8 = undefined;
-        var max_health_buf: [5]u8 = undefined;
-        const current_health = try std.fmt.bufPrintZ(&current_health_buf, "{}", .{@as(i32, @intFromFloat(g.player.current_health))});
-        const max_health = try std.fmt.bufPrintZ(&max_health_buf, "{}", .{@as(i32, @intFromFloat(g.player.max_health))});
+        // var current_health_buf: [5]u8 = undefined;
+        // var max_health_buf: [5]u8 = undefined;
+        // const current_health = try std.fmt.bufPrintZ(&current_health_buf, "{}", .{@as(i32, @intFromFloat(g.player.current_health))});
+        // const max_health = try std.fmt.bufPrintZ(&max_health_buf, "{}", .{@as(i32, @intFromFloat(g.player.max_health))});
 
         rl.drawRectanglePro(.{
             .x = 0,
@@ -149,11 +112,11 @@ pub fn main() !void {
             .height = 25,
         }, .{ .x = 0, .y = 0 }, 0, colors.FF_BG);
 
-        _ = rg.guiProgressBar(.{
-            .x = screen_width - 450,
-            .y = 0,
-            .width = 400,
-            .height = 25,
-        }, current_health, max_health, &g.player.current_health, 0, g.player.max_health);
+        // _ = rg.guiProgressBar(.{
+        //     .x = screen_width - 450,
+        //     .y = 0,
+        //     .width = 400,
+        //     .height = 25,
+        // }, current_health, max_health, &g.player.current_health, 0, g.player.max_health);
     }
 }
