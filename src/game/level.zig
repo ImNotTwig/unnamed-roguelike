@@ -21,7 +21,7 @@ pub const Level = struct {
 
     // if given an allocator, this will populate the tiles field with only walls,
     // otherwise it will leave it as undefined
-    pub fn new(size: rl.Vector2, allocator: ?std.mem.Allocator) !@This() {
+    pub fn new(size: rl.Vector2, tile_type: Tile, allocator: ?std.mem.Allocator) !@This() {
         const ux: usize = @intFromFloat(size.x);
         const uy: usize = @intFromFloat(size.y);
 
@@ -30,7 +30,7 @@ pub const Level = struct {
             for (0..ux) |i| {
                 try tile_list.append(std.ArrayList(Tile).init(a));
                 for (0..uy) |_| {
-                    try tile_list.items[i].append(tiles.wall_0);
+                    try tile_list.items[i].append(tile_type);
                 }
             }
             return .{

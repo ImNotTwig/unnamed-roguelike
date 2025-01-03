@@ -140,7 +140,7 @@ pub fn makeMapFromCellularAutomata(
                         alive += 1;
                         continue;
                     }
-                    if (i_int >= tile_list.items.len - 1) {
+                    if (i_int == tile_list.items.len - 1) {
                         alive += 1;
                         continue;
                     }
@@ -148,13 +148,14 @@ pub fn makeMapFromCellularAutomata(
                         alive += 1;
                         continue;
                     }
-                    if (j_int >= tile_list.items[0].items.len - 1) {
+                    if (j_int == tile_list.items[0].items.len - 1) {
                         alive += 1;
                         continue;
                     }
 
-                    if (i_int + n < tile_list.items.len - 1 and i_int + n >= 0) {
-                        if (j_int + m < tile_list.items[0].items.len - 1 and j_int + m >= 0) {
+                    if (i_int + n <= tile_list.items.len - 1 and i_int + n >= 0) {
+                        if (j_int + m <= tile_list.items[0].items.len - 1 and j_int + m >= 0) {
+                            // if (n == 0 and m == 0) continue;
                             switch (tile_list.items[@intCast(n + i_int)].items[@intCast(m + j_int)]) {
                                 .floor => {
                                     alive += 1;
@@ -165,15 +166,17 @@ pub fn makeMapFromCellularAutomata(
                     }
                 }
             }
+            // if (alive > 8) std.debug.print("alive: {}\n", .{alive});
             switch (tile_list.items[i].items[j]) {
                 .wall => {
-                    if (alive >= 3) {
+                    if (alive >= 4) {
                         try new_tiles.items[i].append(tiles.wall_0);
                     } else {
                         try new_tiles.items[i].append(tiles.floor_0);
                     }
                 },
                 else => {
+                    // best results when alive is <= 9, 10, 11, etc
                     if (alive <= 10) {
                         try new_tiles.items[i].append(tiles.wall_0);
                     } else {

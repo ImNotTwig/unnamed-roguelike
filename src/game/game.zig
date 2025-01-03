@@ -56,9 +56,9 @@ pub const Game = struct {
     current_level: level.Level,
 
     pub fn init(allocator: std.mem.Allocator) @This() {
-        return .{
-            .tile_scale = .{ .x = 30, .y = 30 },
-            .tile_margin = 10 * 0.1,
+        var self = Game{
+            .tile_scale = .{ .x = 10, .y = 10 },
+            .tile_margin = undefined,
             .camera = .{
                 .target = .{ .x = 0, .y = 0 },
                 .offset = .{ .x = 0, .y = 0 },
@@ -79,6 +79,8 @@ pub const Game = struct {
             .player_movement_queue = std.ArrayList(MoveDirection).init(allocator),
             .current_level = undefined,
         };
+        self.tile_margin = self.tile_scale.x * 0.1;
+        return self;
     }
 
     // direction is in terms of a traditional screen grid where
@@ -90,15 +92,14 @@ pub const Game = struct {
 
             switch (direction) {
                 .right => |distance| {
-                    if (self.player.occupied_tile.x < self.current_level.size.x)
-                        switch (self.current_level.tiles.items[x + 1].items[y]) {
-                            .wall => {},
-                            else => {
-                                self.player.occupied_tile.x += distance;
-                                self.player.lock.target_location.x += distance * self.tile_scale.x;
-                                self.player.lock.transition = true;
-                            },
-                        };
+                    if (self.player.occupied_tile.x < self.current_level.size.x - 1) switch (self.current_level.tiles.items[x + 1].items[y]) {
+                        .wall => {},
+                        else => {
+                            self.player.occupied_tile.x += distance;
+                            self.player.lock.target_location.x += distance * self.tile_scale.x;
+                            self.player.lock.transition = true;
+                        },
+                    };
                 },
                 .left => |distance| {
                     if (self.player.occupied_tile.x > 0) switch (self.current_level.tiles.items[x - 1].items[y]) {
@@ -121,15 +122,14 @@ pub const Game = struct {
                     };
                 },
                 .down => |distance| {
-                    if (self.player.occupied_tile.y < self.current_level.size.y)
-                        switch (self.current_level.tiles.items[x].items[y + 1]) {
-                            .wall => {},
-                            else => {
-                                self.player.occupied_tile.y += distance;
-                                self.player.lock.target_location.y += distance * self.tile_scale.y;
-                                self.player.lock.transition = true;
-                            },
-                        };
+                    if (self.player.occupied_tile.y < self.current_level.size.y - 1) switch (self.current_level.tiles.items[x].items[y + 1]) {
+                        .wall => {},
+                        else => {
+                            self.player.occupied_tile.y += distance;
+                            self.player.lock.target_location.y += distance * self.tile_scale.y;
+                            self.player.lock.transition = true;
+                        },
+                    };
                 },
             }
         }
@@ -139,15 +139,15 @@ pub const Game = struct {
         const screen_width = rl.getScreenWidth();
         const screen_height = rl.getScreenHeight();
 
-        const player_text_size = rl.measureTextEx(
-            rl.getFontDefault(),
-            "@",
-            self.tile_scale.x - self.tile_margin,
-            0,
-        );
+        // const player_text_size = rl.measureTextEx(
+        //     rl.getFontDefault(),
+        //     "@",
+        //     self.tile_scale.x - self.tile_margin,
+        //     0,
+        // );
 
-        self.camera.target.x = (self.player.lock.visual_location.x + self.tile_margin + player_text_size.x / 2) + 3;
-        self.camera.target.y = (self.player.lock.visual_location.y + player_text_size.y / 2);
+        self.camera.target.x = self.player.lock.visual_location.x;
+        self.camera.target.y = self.player.lock.visual_location.y;
 
         self.camera.offset.x = @as(f32, @floatFromInt(@divTrunc(screen_width, 2)));
         self.camera.offset.y = @as(f32, @floatFromInt(@divTrunc(screen_height, 2)));
@@ -155,13 +155,15 @@ pub const Game = struct {
 
     pub fn setPlayerLocation(self: *@This(), tile: rl.Vector2) void {
         self.player.occupied_tile = tile;
+        const x = self.player.lock.target_location.x + (tile.x * (self.tile_scale.x));
+        const y = self.player.lock.target_location.y + (tile.y * (self.tile_scale.y));
         self.player.lock.target_location = .{
-            .x = (tile.x * self.tile_scale.x),
-            .y = (tile.y * self.tile_scale.y),
+            .x = x,
+            .y = y,
         };
         self.player.lock.visual_location = .{
-            .x = (tile.x * self.tile_scale.x),
-            .y = (tile.y * self.tile_scale.y),
+            .x = x,
+            .y = y,
         };
     }
 
@@ -226,22 +228,23 @@ pub const Game = struct {
         }
     }
 
-    pub fn drawPlayer(self: @This()) void {
+    //TODO: replace drawing text, with drawing an svg
+    pub fn drawPlayer(self: @This(), font: rl.Font) void {
         const player_text_size = rl.measureTextEx(
             rl.getFontDefault(),
             "@",
-            self.tile_scale.x - self.tile_margin,
+            self.tile_scale.x,
             0,
         );
 
         rl.drawTextEx(
-            rl.getFontDefault(),
+            font,
             "@",
             .{
-                .x = self.player.lock.visual_location.x + (self.tile_scale.x + self.tile_margin - player_text_size.x) / 4 + 1,
-                .y = self.player.lock.visual_location.y - 1,
+                .x = self.player.lock.visual_location.x + (self.tile_scale.x - self.tile_margin - player_text_size.x) / 2,
+                .y = self.player.lock.visual_location.y + (self.tile_scale.y - self.tile_margin * 2 - player_text_size.y) / 2,
             },
-            self.tile_scale.x - self.tile_margin,
+            self.tile_scale.x,
             0,
             rl.Color{ .r = 248, .g = 200, .b = 220, .a = 255 },
         );

@@ -14,10 +14,10 @@ pub fn main() !void {
 
     var g = game.Game.init(allocator);
 
-    g.current_level = try level.Level.new(.{ .x = 150, .y = 75 }, null);
-    g.current_level.tiles = try gen.randomGrid(150, 75, 0.675, allocator);
+    g.current_level = try level.Level.new(.{ .x = 150, .y = 75 }, tiles.wall_0, allocator);
+    g.current_level.tiles = try gen.randomGrid(150, 75, 0.65, allocator);
 
-    for (0..18) |_| {
+    for (0..19) |_| {
         try gen.makeMapFromCellularAutomata(&g.current_level.tiles, allocator);
     }
     try gen.floodFillFloors(
@@ -58,6 +58,8 @@ pub fn main() !void {
     // rg.guiSetStyle(.default, @intFromEnum(rg.GuiControlProperty.base_color_normal), colors.FF_BG.toInt());
     // rg.guiSetStyle(.default, @intFromEnum(rg.GuiControlProperty.base_color_normal), colors.FF_BG.toInt());
 
+    rl.setTextLineSpacing(0);
+
     while (!rl.windowShouldClose()) {
         rl.beginDrawing();
         defer rl.endDrawing();
@@ -73,18 +75,18 @@ pub fn main() !void {
 
         g.player.lock.updateLocation();
         g.moveCameraToPlayer();
-        g.drawPlayer();
+        g.drawPlayer(rl.getFontDefault());
 
         const mouse_wheel = rl.getMouseWheelMove();
         if (mouse_wheel > 0) {
-            g.camera.zoom *= 2;
+            g.camera.zoom *= 1.1;
         } else if (mouse_wheel < 0) {
-            g.camera.zoom /= 2;
+            g.camera.zoom /= 1.1;
         }
 
         if (rl.isKeyPressed(.p)) {
             for (0.., g.current_level.tiles.items) |i, x| {
-                for (0..x.items.len - 1) |j| {
+                for (0..x.items.len) |j| {
                     switch (g.current_level.tiles.items[i].items[j]) {
                         .floor => |*tile| tile.hidden = false,
                         .wall => |*tile| tile.hidden = false,
