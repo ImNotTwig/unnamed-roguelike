@@ -36,7 +36,7 @@ pub const TransitionLock = struct {
 };
 
 pub const Game = struct {
-    const Direction = enum { right, left, up, down };
+    pub const Direction = enum { right, left, up, down };
     const MoveDirection = union(Direction) {
         right: f32,
         left: f32,
@@ -83,9 +83,9 @@ pub const Game = struct {
         return self;
     }
 
-    // direction is in terms of a traditional screen grid where
-    // adding to the y coordinate moves down visually and subtracting moves up
     pub fn movePlayer(self: *@This()) void {
+        // direction is in terms of a traditional screen grid where
+        // adding to the y coordinate moves down visually and subtracting moves up
         while (self.player_movement_queue.popOrNull()) |direction| {
             const x: usize = @intFromFloat(self.player.occupied_tile.x);
             const y: usize = @intFromFloat(self.player.occupied_tile.y);
@@ -139,15 +139,8 @@ pub const Game = struct {
         const screen_width = rl.getScreenWidth();
         const screen_height = rl.getScreenHeight();
 
-        // const player_text_size = rl.measureTextEx(
-        //     rl.getFontDefault(),
-        //     "@",
-        //     self.tile_scale.x - self.tile_margin,
-        //     0,
-        // );
-
-        self.camera.target.x = self.player.lock.visual_location.x;
-        self.camera.target.y = self.player.lock.visual_location.y;
+        self.camera.target.x = self.player.lock.visual_location.x + (self.tile_scale.x - self.tile_margin) / 2;
+        self.camera.target.y = self.player.lock.visual_location.y + (self.tile_scale.y - self.tile_margin) / 2;
 
         self.camera.offset.x = @as(f32, @floatFromInt(@divTrunc(screen_width, 2)));
         self.camera.offset.y = @as(f32, @floatFromInt(@divTrunc(screen_height, 2)));
@@ -228,7 +221,6 @@ pub const Game = struct {
         }
     }
 
-    //TODO: replace drawing text, with drawing an svg
     pub fn drawPlayer(self: @This(), font: rl.Font) void {
         const player_text_size = rl.measureTextEx(
             rl.getFontDefault(),
