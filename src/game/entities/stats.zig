@@ -60,8 +60,9 @@ pub const Combat = struct {
     // if it is lower, it does less, depending on how much lower
     attack: DamageTypeValues,
     defense: DamageTypeValues,
+
     //NOTE: even though this is called accuracy, it effects damage outcome, not hit chance
-    // accuracy.x is the lower threshold of accuracy, y is the higher threshold
+    // accuracy.x is the lower threshold of accuracy, .y is the higher threshold
     // a random number between these two will be chosen, which will then be multiplied against
     // the damage calculation after weapon damage, weapon damage chance, modifiers, etc
     // the min and max range should be 0 < x <= 1 and 0 < y <= 1
