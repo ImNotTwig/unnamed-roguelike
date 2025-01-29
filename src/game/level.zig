@@ -3,7 +3,6 @@ const rl = @import("raylib");
 const tiles = @import("./tiles.zig");
 const game = @import("./game.zig");
 
-// a Tile which is false should be obscured from the player
 pub const TileData = struct {
     hidden: bool,
     color: rl.Color,
@@ -84,7 +83,7 @@ pub const Level = struct {
             if (valid_entrance_coords.items.len == 0 and exit_tries == 2) {
                 std.log.err("Somehow there were no open tiles available for the entrance???\n", .{});
                 std.process.exit(1);
-            } else {}
+            }
             if (valid_exit_coords.items.len == 0) {
                 if (exit_tries == 0) {
                     exit_corner.h = switch (exit_corner.h) {
