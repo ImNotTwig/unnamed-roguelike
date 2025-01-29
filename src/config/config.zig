@@ -7,16 +7,17 @@
 const std = @import("std");
 
 debug: struct {
-    log_level: enum {
+    enable_debug_tools: bool,
+    log_level: enum(u8) {
         // no logs at all
-        none,
+        none = 0,
         // log non-lethal errors
-        almost_but_not_lethal,
+        almost_but_not_lethal = 1,
         // log warnings, and non-lethal errors
-        default,
+        default = 2,
         // log previous things, plus major events
-        verbose,
+        verbose = 3,
         // log previous things, and every single event
-        very_verbose,
+        very_verbose = 4,
     } = .default,
 }
