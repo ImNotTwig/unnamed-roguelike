@@ -11,9 +11,9 @@ debug: struct {
     log_level: enum(u8) {
         // no logs at all
         none = 0,
-        // log non-lethal errors
-        almost_but_not_lethal = 1,
-        // log warnings, and non-lethal errors
+        // log errors
+        errors = 1,
+        // log warnings, errors
         default = 2,
         // log previous things, plus major events
         verbose = 3,
