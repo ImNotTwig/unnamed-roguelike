@@ -7,12 +7,20 @@ const level = @import("./game/level.zig");
 const gen = @import("./generation.zig");
 const tiles = @import("./game/tiles.zig");
 const colors = @import("./colors.zig");
+const Config = @import("./config/config.zig");
+
+pub const config: Config = .{
+    .debug = .{
+        .enable_debug_tools = true,
+        .log_level = .default,
+    },
+};
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    var g = game.Game.init(allocator);
+    var g = try game.Game.init(allocator);
 
     g.current_level = try level.Level.new(.{ .x = 150, .y = 75 }, tiles.wall_0, allocator);
     g.current_level.tiles = try gen.randomGrid(150, 75, 0.65, allocator);
@@ -84,14 +92,16 @@ pub fn main() !void {
             g.camera.zoom /= 1.1;
         }
 
-        if (rl.isKeyPressed(.p)) {
-            for (0.., g.current_level.tiles.items) |i, x| {
-                for (0..x.items.len) |j| {
-                    switch (g.current_level.tiles.items[i].items[j]) {
-                        .floor => |*tile| tile.hidden = false,
-                        .wall => |*tile| tile.hidden = false,
-                        .stair => |*tile| tile.hidden = false,
-                        .other => |*tile| tile.hidden = false,
+        if (config.debug.enable_debug_tools) {
+            if (rl.isKeyPressed(.p)) {
+                for (0.., g.current_level.tiles.items) |i, x| {
+                    for (0..x.items.len) |j| {
+                        switch (g.current_level.tiles.items[i].items[j]) {
+                            .floor => |*tile| tile.hidden = false,
+                            .wall => |*tile| tile.hidden = false,
+                            .stair => |*tile| tile.hidden = false,
+                            .other => |*tile| tile.hidden = false,
+                        }
                     }
                 }
             }
@@ -99,26 +109,14 @@ pub fn main() !void {
 
         rl.endMode2D();
 
-        const screen_width: f32 = @floatFromInt(rl.getScreenWidth());
+        // const screen_width: f32 = @floatFromInt(rl.getScreenWidth());
         // const screen_height: f32 = @floatFromInt(rl.getScreenHeight());
 
-        // var current_health_buf: [5]u8 = undefined;
-        // var max_health_buf: [5]u8 = undefined;
-        // const current_health = try std.fmt.bufPrintZ(&current_health_buf, "{}", .{@as(i32, @intFromFloat(g.player.current_health))});
-        // const max_health = try std.fmt.bufPrintZ(&max_health_buf, "{}", .{@as(i32, @intFromFloat(g.player.max_health))});
-
-        rl.drawRectanglePro(.{
-            .x = 0,
-            .y = 0,
-            .width = screen_width,
-            .height = 25,
-        }, .{ .x = 0, .y = 0 }, 0, colors.FF_BG);
-
-        // _ = rg.guiProgressBar(.{
-        //     .x = screen_width - 450,
+        // rl.drawRectanglePro(.{
+        //     .x = 0,
         //     .y = 0,
-        //     .width = 400,
+        //     .width = screen_width,
         //     .height = 25,
-        // }, current_health, max_health, &g.player.current_health, 0, g.player.max_health);
+        // }, .{ .x = 0, .y = 0 }, 0, colors.FF_BG);
     }
 }

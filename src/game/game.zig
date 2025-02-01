@@ -55,7 +55,7 @@ pub const Game = struct {
     camera: rl.Camera2D,
     current_level: level.Level,
 
-    pub fn init(allocator: std.mem.Allocator) @This() {
+    pub fn init(allocator: std.mem.Allocator) !@This() {
         var self = Game{
             .tile_scale = .{ .x = 10, .y = 10 },
             .tile_margin = undefined,
@@ -65,17 +65,7 @@ pub const Game = struct {
                 .rotation = 0,
                 .zoom = 2.0,
             },
-            .player = .{
-                .body_parts = undefined,
-                .occupied_tile = .{ .x = 0, .y = 0 },
-                .lock = .{
-                    .transition = false,
-                    .animation_time = 0.150,
-                    .delta = 0,
-                    .visual_location = .{ .x = 0, .y = 0 },
-                    .target_location = .{ .x = 0, .y = 0 },
-                },
-            },
+            .player = try Entity.baseliner(allocator),
             .player_movement_queue = std.ArrayList(MoveDirection).init(allocator),
             .current_level = undefined,
         };
