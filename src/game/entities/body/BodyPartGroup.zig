@@ -11,7 +11,6 @@ max_slots: std.ArrayList(MaxSlotsType),
 
 pub const errors = error{
     OverBodyPartLimit,
-    WrongBodyPartGroupInsertion,
     BodyPartPositionFilled,
     BodyPartDoesntExist,
     BodyPartDoesntExistAtPosition,

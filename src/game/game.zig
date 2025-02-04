@@ -55,6 +55,11 @@ pub const Game = struct {
     camera: rl.Camera2D,
     current_level: level.Level,
 
+    ui_state: enum {
+        none,
+        player_stats,
+    } = .none,
+
     pub fn init(allocator: std.mem.Allocator) !@This() {
         var self = Game{
             .tile_scale = .{ .x = 10, .y = 10 },

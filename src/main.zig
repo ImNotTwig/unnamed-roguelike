@@ -7,12 +7,15 @@ const level = @import("./game/level.zig");
 const gen = @import("./generation.zig");
 const tiles = @import("./game/tiles.zig");
 const colors = @import("./colors.zig");
-const Config = @import("./config/config.zig");
+const Config = @import("./config/Config.zig");
 
 pub const config: Config = .{
     .debug = .{
         .enable_debug_tools = true,
         .log_level = .default,
+    },
+    .keybinds = .{
+        .show_player_stats = .t,
     },
 };
 
@@ -109,14 +112,32 @@ pub fn main() !void {
 
         rl.endMode2D();
 
-        // const screen_width: f32 = @floatFromInt(rl.getScreenWidth());
-        // const screen_height: f32 = @floatFromInt(rl.getScreenHeight());
+        if (rl.isKeyPressed(config.keybinds.show_player_stats)) {
+            g.ui_state = switch (g.ui_state) {
+                .player_stats => .none,
+                else => .player_stats,
+            };
+        }
 
-        // rl.drawRectanglePro(.{
-        //     .x = 0,
-        //     .y = 0,
-        //     .width = screen_width,
-        //     .height = 25,
-        // }, .{ .x = 0, .y = 0 }, 0, colors.FF_BG);
+        const screen_width: f32 = @floatFromInt(rl.getScreenWidth());
+        const screen_height: f32 = @floatFromInt(rl.getScreenHeight());
+
+        switch (g.ui_state) {
+            .player_stats => {
+                const player_stats_menu_x = screen_width * 0.08;
+                const player_stats_menu_y = screen_height * 0.08;
+                const player_stats_menu_width = screen_width - ((screen_width * 0.08) * 2);
+                const player_stats_menu_height = screen_height - ((screen_height * 0.08) * 2);
+                rl.drawRectanglePro(.{
+                    .x = player_stats_menu_x,
+                    .y = player_stats_menu_y,
+                    .width = player_stats_menu_width,
+                    .height = player_stats_menu_height,
+                }, .{ .x = 0, .y = 0 }, 0, colors.FF_GRAY03);
+                //TODO: draw a health bar for every body part of the player,
+                // evenly spacing it out vertically
+            },
+            else => {},
+        }
     }
 }

@@ -5,6 +5,7 @@
 // []: very_verbose
 
 const std = @import("std");
+const rl = @import("raylib");
 
 debug: struct {
     enable_debug_tools: bool,
@@ -20,4 +21,8 @@ debug: struct {
         // log previous things, and every single event
         very_verbose = 4,
     } = .default,
+},
+
+keybinds: struct {
+    show_player_stats: rl.KeyboardKey = .t,
 }
