@@ -1,6 +1,11 @@
 const Self = @This();
+
+const std = @import("std");
+
 const stats = @import("../stats.zig");
 const Effect = @import("../effect.zig");
+
+const config = @import("../../../main.zig").config;
 
 pub const Meta = struct {
     // this label signifies where on the body it should go, no matter what the
@@ -15,34 +20,12 @@ pub const Meta = struct {
     parent: ?[]const u8 = null,
 };
 
-pub const labels = .{
-    .torso = "torso",
-    .head = "head",
-    .brain = "brain",
-
-    .jaw = "jaw",
-    .tongue = "tongue",
-    .teeth = "teeth",
-
-    .ear = "ear",
-    .nose = "nose",
-    .eye = "eye",
-
-    .spine = "spine",
-
-    .skin = "skin",
-
-    .liver = "liver",
-    .lung = "lung",
-    .stomach = "stomach",
-    .kidney = "kidney",
-    .heart = "heart",
-
-    .arm = "arm",
-    .hand = "hand",
-
-    .leg = "leg",
-    .foot = "foot",
+pub const errors = error{
+    BodyPartPositionTaken,
+    BodyPartDoesntExist,
+    BodyPartDoesntExistAtPosition,
+    BodyPartInvalidParent,
+    BodyPartHasNoChildren,
 };
 
 meta: Meta,
@@ -60,7 +43,70 @@ defense: stats.DamageTypeValues = .{},
 // for body part specific statuses
 status_effects: []Effect = &.{},
 
-// occupied_slots determines how many slots this body part will take up
-// when placed on an entity
-// NOTE: this can be negative, in case you want to actually have a body part that *makes* slots
-occupied_slots: f32 = 1,
+children: ?std.ArrayList(*Self) = null,
+
+pub fn init(self: *Self, allocator: std.mem.Allocator) !void {
+    self.children = std.ArrayList(*Self).init(allocator);
+}
+
+pub fn getPositionalPart(self: Self, label: []const u8, position: []const u8) !Self {
+    if (self.children) |children| for (children.items) |child| {
+        if (child.meta.position) |child_positions| for (child_positions) |child_position| {
+            if (std.mem.eql(u8, child.meta.label, label) and std.mem.eql(u8, child_position, position)) return child.*;
+        };
+    };
+    if (@intFromEnum(config.debug.log_level) >= 1) {
+        std.log.err(
+            "Could not find positional BodyPart: {s}:{s} in {s}",
+            .{ position, label, self.meta.label },
+        );
+    }
+    return errors.BodyPartDoesntExistAtPosition;
+}
+pub fn getPositionalPartOpt(self: Self, label: []const u8, position: []const u8) ?Self {
+    if (self.getPositionalPart(label, position)) |val| {
+        return val;
+    } else |_| {
+        return null;
+    }
+}
+
+// TODO: check children for being a valid parent
+pub fn addPart(self: *Self, child: *Self) !void {
+    // the children field should be initialized before adding parts
+    if (self.children == null) {
+        if (@intFromEnum(config.debug.log_level) >= 1) {
+            std.log.err(
+                "Tried inserting children into BodyPart: {s} who's children are null\n",
+                .{self.meta.label},
+            );
+        }
+        return errors.BodyPartHasNoChildren;
+    }
+    for (self.children.?.items) |existing_child| {
+        if (existing_child.addPart(child)) {
+            return;
+        } else |_| {}
+    }
+
+    if (child.meta.parent) |parent| if (!std.mem.eql(u8, self.meta.label, parent)) {
+        if (@intFromEnum(config.debug.log_level) >= 1) {
+            std.log.err(
+                "BodyPart: {s} with parent: {s} tried inserting into BodyPart: {s}\n",
+                .{ child.meta.label, child.meta.parent.?, self.meta.label },
+            );
+        }
+        return errors.BodyPartInvalidParent;
+    };
+    if (child.meta.position) |positions| for (positions) |position| if (self.getPositionalPartOpt(child.meta.label, position)) |_| {
+        if (@intFromEnum(config.debug.log_level) >= 1) {
+            std.log.err(
+                "Tried inserting BodyPart: {s} in BodyPart {s} at position: {s}, but it was already taken\n",
+                .{ child.meta.label, self.meta.label, position },
+            );
+        }
+        return errors.BodyPartPositionTaken;
+    };
+
+    try self.children.?.append(child);
+}

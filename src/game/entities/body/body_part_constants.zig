@@ -1,5 +1,5 @@
 const BodyPart = @import("./BodyPart.zig");
-const labels = BodyPart.labels;
+const labels = @import("./body_part_labels.zig").labels;
 
 ////// Baseline bodyparts
 
