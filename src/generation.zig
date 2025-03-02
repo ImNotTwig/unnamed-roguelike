@@ -1,7 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib");
 
-const game = @import("./game/game.zig");
+const game = @import("./game/Game.zig");
 const level = @import("./game/level.zig");
 const tiles = @import("./game/tiles.zig");
 
@@ -79,6 +79,7 @@ pub fn floodFillFloors(
         }
         checked_tiles.deinit();
     }
+    // FIXME: why does this effect the player entity in main??
     for (0.., tile_list.items) |i, x| {
         for (0.., x.items) |j, y| {
             switch (y) {
@@ -90,6 +91,8 @@ pub fn floodFillFloors(
             }
         }
     }
+    ////
+
     var max: usize = 0;
     var max_index: usize = undefined;
     for (0.., checked_tiles.items) |i, x| {

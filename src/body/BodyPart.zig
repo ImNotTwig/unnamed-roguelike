@@ -2,10 +2,10 @@ const Self = @This();
 
 const std = @import("std");
 
-const stats = @import("../stats.zig");
-const Effect = @import("../effect.zig");
+const stats = @import("../entities/stats.zig");
+const Effect = @import("../entities/Effect.zig");
 
-const config = @import("../../../main.zig").config;
+const config = @import("../main.zig").config;
 
 pub const Meta = struct {
     // this label signifies where on the body it should go, no matter what the
@@ -32,10 +32,8 @@ meta: Meta,
 
 // this field refers to how much of a chance this part will get hit, when its parent gets hit.
 // a part with no parents has a size of 100% == 1, and most of the time the biggest part will be the torso
-// NOTE: when size == 0, then this body part cannot be hit, and must rely on
-// other body parts to exist, in which case this body part gets hit when its parent
-// gets hit
-size: f32,
+// NOTE: when size == null, then this body part takes damage when it's parent does.
+size: ?f32,
 
 health: stats.Health = .{},
 defense: stats.DamageTypeValues = .{},
@@ -49,13 +47,13 @@ pub fn init(self: *Self, allocator: std.mem.Allocator) !void {
     self.children = std.ArrayList(*Self).init(allocator);
 }
 
-pub fn getPositionalPart(self: Self, label: []const u8, position: []const u8) !Self {
+pub fn getPositionalPartErr(self: Self, label: []const u8, position: []const u8) !Self {
     if (self.children) |children| for (children.items) |child| {
         if (child.meta.position) |child_positions| for (child_positions) |child_position| {
             if (std.mem.eql(u8, child.meta.label, label) and std.mem.eql(u8, child_position, position)) return child.*;
         };
     };
-    if (@intFromEnum(config.debug.log_level) >= 1) {
+    if (comptime @intFromEnum(config.debug.log_level) >= 1) {
         std.log.err(
             "Could not find positional BodyPart: {s}:{s} in {s}",
             .{ position, label, self.meta.label },
@@ -64,33 +62,35 @@ pub fn getPositionalPart(self: Self, label: []const u8, position: []const u8) !S
     return errors.BodyPartDoesntExistAtPosition;
 }
 pub fn getPositionalPartOpt(self: Self, label: []const u8, position: []const u8) ?Self {
-    if (self.getPositionalPart(label, position)) |val| {
-        return val;
-    } else |_| {
-        return null;
-    }
+    if (self.children) |children| for (children.items) |child| {
+        if (child.meta.position) |child_positions| for (child_positions) |child_position| {
+            if (std.mem.eql(u8, child.meta.label, label) and std.mem.eql(u8, child_position, position)) return child.*;
+        };
+    };
+    return null;
 }
 
-// TODO: check children for being a valid parent
-pub fn addPart(self: *Self, child: *Self) !void {
-    // the children field should be initialized before adding parts
-    if (self.children == null) {
-        if (@intFromEnum(config.debug.log_level) >= 1) {
+pub fn addPartErr(self: *Self, child: *Self) !void {
+    if (self.children) |children| {
+        for (children.items) |existing_child| {
+            if (existing_child.addPartErr(child)) {
+                return;
+            } else |_| {}
+        }
+    } else {
+        // the children field should be initialized before adding parts
+        if (comptime @intFromEnum(config.debug.log_level) >= 1) {
             std.log.err(
                 "Tried inserting children into BodyPart: {s} who's children are null\n",
                 .{self.meta.label},
             );
         }
+
         return errors.BodyPartHasNoChildren;
-    }
-    for (self.children.?.items) |existing_child| {
-        if (existing_child.addPart(child)) {
-            return;
-        } else |_| {}
     }
 
     if (child.meta.parent) |parent| if (!std.mem.eql(u8, self.meta.label, parent)) {
-        if (@intFromEnum(config.debug.log_level) >= 1) {
+        if (comptime @intFromEnum(config.debug.log_level) >= 1) {
             std.log.err(
                 "BodyPart: {s} with parent: {s} tried inserting into BodyPart: {s}\n",
                 .{ child.meta.label, child.meta.parent.?, self.meta.label },
@@ -99,7 +99,7 @@ pub fn addPart(self: *Self, child: *Self) !void {
         return errors.BodyPartInvalidParent;
     };
     if (child.meta.position) |positions| for (positions) |position| if (self.getPositionalPartOpt(child.meta.label, position)) |_| {
-        if (@intFromEnum(config.debug.log_level) >= 1) {
+        if (comptime @intFromEnum(config.debug.log_level) >= 1) {
             std.log.err(
                 "Tried inserting BodyPart: {s} in BodyPart {s} at position: {s}, but it was already taken\n",
                 .{ child.meta.label, self.meta.label, position },
@@ -109,4 +109,23 @@ pub fn addPart(self: *Self, child: *Self) !void {
     };
 
     try self.children.?.append(child);
+}
+
+pub fn addPartBool(self: *Self, child: *Self) bool {
+    if (self.children == null) return false;
+
+    if (child.meta.parent) |parent| if (!std.mem.eql(u8, self.meta.label, parent)) {
+        return false;
+    };
+    if (child.meta.position) |positions| for (positions) |position| if (self.getPositionalPartOpt(child.meta.label, position)) |_| {
+        return false;
+    };
+
+    // NOTE: I'm not really sure if i should keep this returning false, or make this function
+    // return an error? because this function should ideally not return an error, because
+    // thats the point of addPartErr
+    self.children.?.append(child) catch {
+        return false;
+    };
+    return true;
 }

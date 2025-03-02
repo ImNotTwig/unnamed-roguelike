@@ -1,7 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib");
 const tiles = @import("./tiles.zig");
-const game = @import("./game.zig");
+const game = @import("./Game.zig");
 
 pub const TileData = struct {
     hidden: bool,

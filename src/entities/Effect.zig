@@ -2,15 +2,15 @@ const Self = @This();
 
 const std = @import("std");
 
-const Entity = @import("./entity.zig");
-const game = @import("../game.zig");
+const Entity = @import("./Entity.zig");
+const Game = @import("../game/Game.zig");
 
 pub const on_fire = Self{
     .name = "on_fire",
     .negative = true,
     .predicate_fns = &.{
         &(struct {
-            fn f(e: *Entity, _: game.Game) bool {
+            fn f(e: *Entity, _: Game) bool {
                 for (e.status_effects) |effect| {
                     if (std.mem.eql(u8, effect.name, "fire_immunity")) {
                         return false;
@@ -18,11 +18,11 @@ pub const on_fire = Self{
                 }
                 return true;
             }
-        }),
+        }.f),
     },
     .tick_cooldown = 1,
     .apply_fn = &(struct {
-        fn f(e: *Entity, _: game.Game) void {
+        fn f(e: *Entity, _: Game) void {
             var iter = e.body_parts.iterator();
             while (iter.next()) |entry| {
                 for (entry.value_ptr.items) |val| {
@@ -39,11 +39,11 @@ name: []const u8,
 negative: bool,
 
 // any predicates this effect needs fulfilled to apply
-predicate_fns: ?[](*const fn (Entity, game.Game) bool) = null,
+predicate_fns: ?[](*const fn (Entity, Game) bool) = null,
 
 // how many ticks should we wait before applying the effect again?
 // set to null to disable tick based applications
 tick_cooldown: ?usize,
 
 // the function that this effect will run whenever it should be triggered
-apply_fn: ?*const fn (*Entity, game.Game) void = null,
+apply_fn: ?*const fn (*Entity, Game) void = null,
